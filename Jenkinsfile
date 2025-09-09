@@ -47,7 +47,6 @@ pipeline {
             # Verify connection
             echo "Verifying cluster access..."
             kubectl get nodes
-            kubectl get namespaces
           '''
         }
       }
@@ -57,7 +56,7 @@ pipeline {
       steps {
         withCredentials([aws(credentialsId: 'aws-credentials', region: 'us-east-1')]) {
           sh '''
-            # Apply service & deployment files first
+            # Apply service & deployment files
             kubectl apply -f deployment-frontend.yaml
             kubectl apply -f service-frontend.yaml
             
@@ -67,7 +66,7 @@ pipeline {
             # Wait for rollout to complete
             kubectl rollout status deployment/frontend-deployment -n default --timeout=300s
             
-            # Verify deployment
+            # Show deployment status
             kubectl get pods -n default
             kubectl get services -n default
           '''
@@ -81,10 +80,10 @@ pipeline {
       sh 'docker image prune -f'
     }
     success {
-      echo 'Deployment to TRY-eks cluster successful!'
+      echo '✅ Deployment to TRY-eks cluster successful!'
     }
     failure {
-      echo 'Deployment failed! Check the logs above.'
+      echo '❌ Deployment failed! Check the logs above.'
     }
   }
 }
