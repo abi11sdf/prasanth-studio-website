@@ -25,7 +25,7 @@ pipeline {
     
     stage('Push to ECR') {
       steps {
-        withCredentials([aws(credentialsId: 'aws-credentials', region: 'us-east-1')]) {
+        withCredentials([aws(credentialsId: 'aws-credentials')]) {
           sh '''
             aws ecr get-login-password --region $AWS_REGION | \
             docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
@@ -39,14 +39,18 @@ pipeline {
     
     stage('Configure kubectl') {
       steps {
-        withCredentials([aws(credentialsId: 'aws-credentials', region: 'us-east-1')]) {
+        withCredentials([aws(credentialsId: 'aws-credentials')]) {
           sh '''
             # Update kubeconfig for EKS cluster
             aws eks update-kubeconfig --region $AWS_REGION --name $EKS_CLUSTER_NAME
             
-            # Verify connection
+            # Verify connection with extended timeout
             echo "Verifying cluster access..."
-            kubectl get nodes
+            kubectl get nodes --request-timeout=60s
+            
+            # Test with kubectl version first (lighter call)
+            echo "Testing basic connectivity..."
+            kubectl version --short --request-timeout=30s
           '''
         }
       }
@@ -54,8 +58,16 @@ pipeline {
     
     stage('Deploy to EKS') {
       steps {
-        withCredentials([aws(credentialsId: 'aws-credentials', region: 'us-east-1')]) {
+        withCredentials([aws(credentialsId: 'aws-credentials')]) {
           sh '''
+            # Verify cluster access before deployment
+            if ! kubectl get nodes --request-timeout=30s > /dev/null 2>&1; then
+              echo "❌ Cannot connect to EKS cluster. Check network connectivity."
+              exit 1
+            fi
+            
+            echo "✅ Cluster connectivity verified. Proceeding with deployment..."
+            
             # Apply service & deployment files
             kubectl apply -f deployment-frontend.yaml
             kubectl apply -f service-frontend.yaml
