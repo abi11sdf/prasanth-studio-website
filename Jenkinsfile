@@ -23,7 +23,7 @@ pipeline {
 
     stage('Login to ECR & Push') {
       steps {
-        withAWS(credentials: 'aws-creds', region: "${AWS_REGION}") {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']]) {
           sh """
             aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO
             docker tag prasanth-frontend:latest $ECR_REPO:$IMAGE_TAG
@@ -35,16 +35,16 @@ pipeline {
 
     stage('Deploy to EKS') {
       steps {
-        withAWS(credentials: 'aws-creds', region: "${AWS_REGION}") {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']]) {
           sh """
             aws eks update-kubeconfig --region $AWS_REGION --name $EKS_CLUSTER_NAME
-
-            # Update Deployment image
-            kubectl set image deployment/frontend-deployment frontend=$ECR_REPO:$IMAGE_TAG
 
             # Apply Deployment & Service
             kubectl apply -f deployment-frontend.yaml
             kubectl apply -f service-frontend.yaml
+
+            # Update image
+            kubectl set image deployment/frontend-deployment frontend=$ECR_REPO:$IMAGE_TAG
 
             # Restart Deployment
             kubectl rollout restart deployment/frontend-deployment
@@ -76,3 +76,5 @@ pipeline {
     }
   }
 }
+
+
