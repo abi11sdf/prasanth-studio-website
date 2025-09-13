@@ -45,7 +45,7 @@ pipeline {
             kubectl set image deployment/frontend-deployment frontend=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
             kubectl rollout restart deployment/frontend-deployment
             
-            # Wait for deployment with shorter timeout
+            # Wait for deployment
             kubectl rollout status deployment/frontend-deployment --timeout=180s
             
             # Show final status
