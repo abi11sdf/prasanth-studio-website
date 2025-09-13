@@ -1,3 +1,5 @@
+
+
 pipeline {
   agent any
   environment {
@@ -18,8 +20,8 @@ pipeline {
       steps {
         withCredentials([aws(credentialsId: 'aws-credentials')]) {
           sh '''
-            # Build image (force amd64 platform)
-            docker build --platform=linux/amd64 -t $ECR_REPO:$IMAGE_TAG .
+            # Build image
+            docker build -t $ECR_REPO:$IMAGE_TAG .
             
             # Login to ECR and push
             aws ecr get-login-password --region $AWS_REGION | \
@@ -81,5 +83,6 @@ pipeline {
     }
   }
 }
+
 
 
