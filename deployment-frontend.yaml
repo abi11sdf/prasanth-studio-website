@@ -5,7 +5,7 @@ metadata:
   labels:
     app: frontend
 spec:
-  replicas: 1  # Reduced from 2 to 1
+  replicas: 1
   selector:
     matchLabels:
       app: frontend
@@ -19,17 +19,3 @@ spec:
           image: 869823016797.dkr.ecr.us-east-1.amazonaws.com/prasanth-frontend:latest
           ports:
             - containerPort: 80
-          resources:
-            requests:
-              memory: "32Mi"  # Reduced memory requirements
-              cpu: "25m"      # Reduced CPU requirements
-            limits:
-              memory: "64Mi"
-              cpu: "50m"
-          readinessProbe:
-            httpGet:
-              path: /
-              port: 80
-            initialDelaySeconds: 10
-            periodSeconds: 5
-      # No imagePullSecrets - using node IAM role
