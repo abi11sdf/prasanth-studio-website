@@ -13,32 +13,19 @@ pipeline {
         git url: 'https://github.com/abi11sdf/prasanth-studio-website.git', branch: 'main'
       }
     }
-    stage('Build Docker Image') {
-      steps {
-        sh 'docker build -t $ECR_REPO:$IMAGE_TAG .'
-      }
-    }
-    stage('Push to ECR') {
+    stage('Build & Push') {
       steps {
         withCredentials([aws(credentialsId: 'aws-credentials')]) {
           sh '''
+            # Build image
+            docker build -t $ECR_REPO:$IMAGE_TAG .
+            
+            # Login to ECR and push
             aws ecr get-login-password --region $AWS_REGION | \
             docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+            
             docker tag $ECR_REPO:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
             docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
-          '''
-        }
-      }
-    }
-    stage('Configure kubectl') {
-      steps {
-        withCredentials([aws(credentialsId: 'aws-credentials')]) {
-          sh '''
-            aws eks update-kubeconfig --region $AWS_REGION --name $EKS_CLUSTER_NAME
-            echo "Verifying cluster access..."
-            kubectl get nodes --request-timeout=60s
-            echo "Testing basic connectivity..."
-            kubectl version --output=yaml --request-timeout=30s
           '''
         }
       }
@@ -47,17 +34,24 @@ pipeline {
       steps {
         withCredentials([aws(credentialsId: 'aws-credentials')]) {
           sh '''
-            echo "Deploying to EKS..."
-            # Apply deployment & service
+            # Configure kubectl
+            aws eks update-kubeconfig --region $AWS_REGION --name $EKS_CLUSTER_NAME
+            
+            # Deploy application
             kubectl apply -f deployment-frontend.yaml
             kubectl apply -f service-frontend.yaml
-            # Update deployment image - FIXED: Changed from 'frontend-container' to 'frontend'
-            kubectl set image deployment/frontend-deployment frontend=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG -n default
-            # Wait for rollout to complete
-            kubectl rollout status deployment/frontend-deployment -n default --timeout=300s
-            # Show status
-            kubectl get pods -n default
-            kubectl get services -n default
+            
+            # Update image and restart deployment
+            kubectl set image deployment/frontend-deployment frontend=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
+            kubectl rollout restart deployment/frontend-deployment
+            
+            # Wait for deployment with shorter timeout
+            kubectl rollout status deployment/frontend-deployment --timeout=180s
+            
+            # Show final status
+            echo "=== Deployment Status ==="
+            kubectl get pods -l app=frontend
+            kubectl get svc frontend-service
           '''
         }
       }
@@ -68,10 +62,10 @@ pipeline {
       sh 'docker image prune -f'
     }
     success {
-      echo '✅ Deployment to EKS successful!'
+      echo '✅ Deployment successful!'
     }
     failure {
-      echo '❌ Deployment failed! Check the logs above.'
+      echo '❌ Deployment failed!'
     }
   }
 }
