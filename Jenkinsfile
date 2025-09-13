@@ -18,9 +18,8 @@ pipeline {
       steps {
         withCredentials([aws(credentialsId: 'aws-credentials')]) {
           sh '''
-            # Build multi-platform image
-            docker buildx create --use || true
-            docker buildx build --platform linux/amd64,linux/arm64 -t $ECR_REPO:$IMAGE_TAG . --load
+            # Build image
+            docker build -t $ECR_REPO:$IMAGE_TAG .
             
             # Login to ECR and push
             aws ecr get-login-password --region $AWS_REGION | \
@@ -63,13 +62,6 @@ pipeline {
             echo "=== Pod Describe (for troubleshooting) ==="
             kubectl describe pods -l app=frontend
             
-            echo "=== Container Events ==="
-            kubectl get events --sort-by=.metadata.creationTimestamp --field-selector involvedObject.kind=Pod
-            
-            echo "=== Node Resources ==="
-            kubectl top nodes || echo "Metrics not available"
-            kubectl describe nodes | grep -A 5 "Allocated resources"
-            
             echo "=== Application deployed to Kubernetes! ==="
           '''
         }
@@ -89,3 +81,4 @@ pipeline {
     }
   }
 }
+
