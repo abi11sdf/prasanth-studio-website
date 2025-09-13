@@ -5,7 +5,7 @@ metadata:
   labels:
     app: frontend
 spec:
-  replicas: 2   # runs on 2 pods for HA
+  replicas: 2
   selector:
     matchLabels:
       app: frontend
@@ -19,5 +19,14 @@ spec:
           image: 869823016797.dkr.ecr.us-east-1.amazonaws.com/prasanth-frontend:latest
           ports:
             - containerPort: 80
-      imagePullSecrets:
-        - name: ecr-secret   # we will create this secret
+          # Add resource limits to prevent hanging
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+      # Remove or create the ECR secret first
+      # imagePullSecrets:
+      #   - name: ecr-secretecret
