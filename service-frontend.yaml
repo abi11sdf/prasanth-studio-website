@@ -1,21 +1,15 @@
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+apiVersion: v1
+kind: Service
 metadata:
-  name: frontend-ingress
-  annotations:
-    kubernetes.io/ingress.class: alb
-    alb.ingress.kubernetes.io/scheme: internet-facing
+  name: frontend-service
 spec:
-  rules:
-    - http:
-        paths:
-          - path: /*
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: frontend-service
-                port:
-                  number: 80
+  type: ClusterIP  # Internal service, ALB will route traffic here
+  selector:
+    app: frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
 
 
 
