@@ -1,6 +1,5 @@
 # Use official multi-architecture Nginx image
-FROM nginx:1.25-alpine
-
+FROM nginx:alpine
 # Remove default nginx website
 RUN rm -rf /usr/share/nginx/html/*
 
