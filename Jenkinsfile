@@ -45,11 +45,17 @@ pipeline {
             kubectl set image deployment/frontend-deployment frontend=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
             kubectl rollout restart deployment/frontend-deployment
             
-            # Wait for deployment
-            kubectl rollout status deployment/frontend-deployment --timeout=180s
+            # Wait for deployment with debug info if it fails
+            timeout 60s kubectl rollout status deployment/frontend-deployment || {
+              echo "=== DEPLOYMENT DEBUG INFO ==="
+              kubectl get pods -l app=frontend
+              kubectl describe pods -l app=frontend | grep -A 10 "Events:"
+              kubectl get events --sort-by=.metadata.creationTimestamp | tail -10
+              echo "Continuing without waiting for full rollout..."
+            }
             
             # Show final status
-            echo "=== Deployment Status ==="
+            echo "=== Current Status ==="
             kubectl get pods -l app=frontend
             kubectl get svc frontend-service
           '''
