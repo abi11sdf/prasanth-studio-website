@@ -55,6 +55,13 @@ pipeline {
             kubectl get svc frontend-service
             kubectl get ingress frontend-ingress
             
+            # Debug pod issues
+            echo "=== Pod Logs (if any pods are running) ==="
+            kubectl logs -l app=frontend --tail=50 || echo "No logs available"
+            
+            echo "=== Pod Describe (for troubleshooting) ==="
+            kubectl describe pods -l app=frontend
+            
             echo "=== Application deployed to Kubernetes! ==="
           '''
         }
@@ -72,6 +79,8 @@ pipeline {
     failure {
       echo '❌ Deployment failed!'
     }
+  }
+}
   }
 } 
 
