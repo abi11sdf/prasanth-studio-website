@@ -1,69 +1,65 @@
 pipeline {
   agent any
   environment {
-    AWS_ACCOUNT_ID   = "869823016797"
-    AWS_REGION       = "us-east-1"
-    ECR_REPO         = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/prasanth-frontend"
-    IMAGE_TAG        = "latest"
+    AWS_ACCOUNT_ID = "869823016797"
+    AWS_REGION = "us-east-1"
+    ECR_REPO = "prasanth-frontend"
+    IMAGE_TAG = "latest"
     EKS_CLUSTER_NAME = "TRY-eks"
   }
-
   stages {
     stage('Checkout') {
       steps {
         git url: 'https://github.com/abi11sdf/prasanth-studio-website.git', branch: 'main'
       }
     }
-
-    stage('Build Docker Image') {
+    
+    stage('Build & Push') {
       steps {
-        sh 'docker build -t prasanth-frontend:latest .'
-      }
-    }
-
-    stage('Login to ECR & Push') {
-      steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']]) {
-          sh """
-            aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO
-            docker tag prasanth-frontend:latest $ECR_REPO:$IMAGE_TAG
-            docker push $ECR_REPO:$IMAGE_TAG
-          """
+        withCredentials([aws(credentialsId: 'aws-credentials')]) {
+          sh '''
+            # Build image
+            docker build -t $ECR_REPO:$IMAGE_TAG .
+            
+            # Login to ECR and push
+            aws ecr get-login-password --region $AWS_REGION | \
+            docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+            
+            docker tag $ECR_REPO:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
+            docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
+          '''
         }
       }
     }
-
+    
     stage('Deploy to EKS') {
       steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']]) {
-          sh """
+        withCredentials([aws(credentialsId: 'aws-credentials')]) {
+          sh '''
+            # Configure kubectl
             aws eks update-kubeconfig --region $AWS_REGION --name $EKS_CLUSTER_NAME
-
-            # Apply Deployment & Service
+            
+            # Deploy application
             kubectl apply -f deployment-frontend.yaml
             kubectl apply -f service-frontend.yaml
-
-            # Update image
-            kubectl set image deployment/frontend-deployment frontend=$ECR_REPO:$IMAGE_TAG
-
-            # Restart Deployment
+            
+            # Update image and restart deployment
+            kubectl set image deployment/frontend-deployment frontend=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
             kubectl rollout restart deployment/frontend-deployment
-
-            # Verify resources
+            
+            # Show immediate status
+            echo "=== Deployment Applied ==="
+            kubectl get deployment frontend-deployment
             kubectl get pods -l app=frontend
             kubectl get svc frontend-service
-          """
+            
+            echo "=== Application deployed to Kubernetes! ==="
+          '''
         }
-      }
-    }
-
-    stage('Clean Docker') {
-      steps {
-        sh 'docker image prune -f'
       }
     }
   }
-
+  
   post {
     always {
       sh 'docker image prune -f'
@@ -72,9 +68,10 @@ pipeline {
       echo '✅ Deployment successful!'
     }
     failure {
-      echo '❌ Deployment failed! Check logs.'
+      echo '❌ Deployment failed!'
     }
   }
 }
+
 
 
