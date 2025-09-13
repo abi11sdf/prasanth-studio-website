@@ -42,6 +42,7 @@ pipeline {
             # Deploy application
             kubectl apply -f deployment-frontend.yaml
             kubectl apply -f service-frontend.yaml
+            kubectl apply -f frontend-ingress.yaml
             
             # Update image and restart deployment
             kubectl set image deployment/frontend-deployment frontend=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
@@ -52,6 +53,7 @@ pipeline {
             kubectl get deployment frontend-deployment
             kubectl get pods -l app=frontend
             kubectl get svc frontend-service
+            kubectl get ingress frontend-ingress
             
             echo "=== Application deployed to Kubernetes! ==="
           '''
@@ -71,7 +73,7 @@ pipeline {
       echo '❌ Deployment failed!'
     }
   }
-}
+} 
 
 
 
