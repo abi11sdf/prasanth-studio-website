@@ -48,9 +48,9 @@ pipeline {
             echo "Verifying cluster access..."
             kubectl get nodes --request-timeout=60s
             
-            # Test with kubectl version first (lighter call)
+            # Test basic connectivity
             echo "Testing basic connectivity..."
-            kubectl version --short --request-timeout=30s
+            kubectl version --output=short --request-timeout=30s
           '''
         }
       }
